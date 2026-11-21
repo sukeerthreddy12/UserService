@@ -1,0 +1,86 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '4.1.1'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	lombokVersion = "1.18.42"
+}
+
+dependencies {
+	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web'
+	implementation group: 'org.springframework.boot', name: 'spring-boot-starter-actuator'
+	implementation group: 'org.springframework.cloud', name: 'spring-cloud-starter-bootstrap', version: '5.0.3'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-kafka'
+	implementation 'org.modelmapper:modelmapper:3.2.0'
+	runtimeOnly 'com.mysql:mysql-connector-j'
+	compileOnly group: 'org.projectlombok', name:'lombok', version: "$lombokVersion"
+	annotationProcessor group: 'org.projectlombok', name: 'lombok', version: "$lombokVersion"
+	testAnnotationProcessor group: 'org.projectlombok', name: 'lombok', version: "$lombokVersion"
+	testCompileOnly group: 'org.projectlombok', name: 'lombok', version: "$lombokVersion"
+	implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
+	implementation 'io.jsonwebtoken:jjwt-impl:0.12.5'
+	implementation 'io.jsonwebtoken:jjwt-jackson:0.12.5'
+	implementation 'org.springframework.boot:spring-boot-starter'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'com.h2database:h2'
+}
+
+def dotenvFile = rootProject.file('.env')
+def dotenv = [:]
+if (dotenvFile.exists()) {
+	dotenvFile.eachLine { rawLine ->
+		def line = rawLine.trim()
+		if (line.isEmpty() || line.startsWith('#')) {
+			return
+		}
+		if (line.startsWith('export ')) {
+			line = line.substring('export '.length()).trim()
+		}
+		def separator = line.indexOf('=')
+		if (separator <= 0) {
+			return
+		}
+		def key = line.substring(0, separator).trim()
+		def value = line.substring(separator + 1).trim()
+		if (value.length() >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+			value = value.substring(1, value.length() - 1)
+		}
+		dotenv[key] = value
+	}
+}
+
+tasks.named('bootRun') {
+	environment(dotenv)
+}
+
+tasks.register('run') {
+	group = 'application'
+	description = 'Starts the Spring Boot application'
+	dependsOn tasks.named('bootRun')
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.compilerArgs.add('-proc:full')
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
